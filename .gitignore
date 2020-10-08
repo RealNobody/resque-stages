@@ -4,9 +4,12 @@
 /_yardoc/
 /coverage/
 /doc/
+/log/
 /pkg/
 /spec/reports/
 /tmp/
+/cornucopia_report/
 
 # rspec failure tracking
 .rspec_status
+spec/examples.txt

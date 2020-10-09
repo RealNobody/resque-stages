@@ -6,6 +6,7 @@ SimpleCov.start
 require "spec_helper"
 require "cornucopia/rspec_hooks"
 require "resque-stages"
+require "resque-retry"
 # require "yaml"
 # require "timecop"
 # require "faker"

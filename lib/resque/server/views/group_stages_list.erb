@@ -1,0 +1,58 @@
+<link href="<%= u("stages/public/stages.css") %>" media="screen" rel="stylesheet" type="text/css">
+
+<% group = Resque::Plugins::Stages::StagedGroup.new(@group_id) %>
+
+<h1>
+  <%= group.description %>
+</h1>
+
+<p>
+  <a href="<%= u("stages") %>">
+    Groups
+  </a>
+</p>
+
+<p>
+  Num stages in this group = <%= group.num_stages %>
+</p>
+
+<% if group.num_stages > 0 %>
+  <h1>Stages</h1>
+
+  <% stages = group.paged_stages(@page_num, @page_size) %>
+
+  <div class="stages_reset"/>
+
+  <%= erb(File.read(Resque::StagesServer.erb_path("_group_stages_list_pagination.erb")),
+          locals: { group:     group,
+                    group_id:  @group_id,
+                    page_num:  @page_num,
+                    page_size: @page_size }) %>
+
+  <%= erb(File.read(Resque::StagesServer.erb_path("_group_stages_list_table.erb")),
+          locals: { stages: stages, show_class: false }) %>
+
+  <%= erb(File.read(Resque::StagesServer.erb_path("_group_stages_list_pagination.erb")),
+          locals: { group:     group,
+                    group_id:  @group_id,
+                    page_num:  @page_num,
+                    page_size: @page_size }) %>
+
+  <br/>
+<% end %>
+
+<form method="POST" action="<%= u("stages/initiate_group") %>?<%=
+  { group_id: group.group_id }.to_param %>">
+  <input type="submit" name="" value="Initiate Group"/>
+</form>
+<form method="POST" action="<%= u("stages/delete_group") %>?<%= { group_id: group.group_id }.to_param %>">
+  <input type="submit" name="" value="Delete"/>
+</form>
+
+<div class="stages_reset"/>
+<br/>
+<div>
+  <p>
+    Stages v<%= Resque::Plugins::Stages::VERSION %>
+  </p>
+</div>

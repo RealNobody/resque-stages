@@ -1,0 +1,44 @@
+<div class="table_container">
+  <table>
+    <tr>
+      <th><a href="<%= u("stages") %>?<%=
+        { sort:      "description",
+          page_size: page_size,
+          page_num:  page_num,
+          order:     staged_group_list.order_param("description", sort_by, sort_order) }.to_param %>">
+        Description
+      </a></th>
+      <th><a href="<%= u("stages") %>?<%=
+        { sort:      "num_stages",
+          page_size: page_size,
+          page_num:  page_num,
+          order:     staged_group_list.order_param("num_stages", sort_by, sort_order) }.to_param %>">
+        Num Stages
+      </a></th>
+      <th><a href="<%= u("stages") %>?<%=
+        { sort:      "created_at",
+          page_size: page_size,
+          page_num:  page_num,
+          order:     staged_group_list.order_param("created_at", sort_by, sort_order) }.to_param %>">
+        Created
+      </a></th>
+    </tr>
+
+    <% groups.each do |group| %>
+      <tr>
+        <td>
+          <a href="<%= u("stages") %>/group_stages_list?<%= { group_id: group.group_id }.to_param %>">
+            <%= group.description.presence || "&nbsp;&nbsp;&nbsp;".html_safe %>
+          </a>
+        </td>
+        <td>
+          <%= group.num_stages.to_i %>
+        </td>
+        <td>
+          <%= time_ago_in_words(group.created_at) %> ago
+          (<%= group.created_at %>)
+        </td>
+      </tr>
+    <% end %>
+  </table>
+</div>

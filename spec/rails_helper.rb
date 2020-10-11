@@ -3,13 +3,14 @@
 require "simplecov"
 SimpleCov.start
 
+require "active_support/testing/time_helpers"
 require "spec_helper"
 require "cornucopia/rspec_hooks"
 require "resque-stages"
+require "resque-retry"
 # require "yaml"
-# require "timecop"
-# require "faker"
-# require "rack/test"
+require "faker"
+require "rack/test"
 require "resque/server"
 require "resque/stages_server"
 require "resque-scheduler"
@@ -29,6 +30,10 @@ Redis.current = Redis.new(redis_options.merge(logger: redis_logger))
 
 Resque.redis  = Redis.new(redis_options)
 Resque.inline = true
+
+RSpec.configure do |config|
+  config.include ActiveSupport::Testing::TimeHelpers
+end
 
 # Cornucopia::Util::Configuration.context_seed = 1
 # Cornucopia::Util::Configuration.seed         = 1

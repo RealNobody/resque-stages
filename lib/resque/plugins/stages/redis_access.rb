@@ -8,7 +8,7 @@ module Resque
         NAME_SPACE = "Resque::Plugins::Stages::"
 
         def redis
-          @redis ||= Redis::Namespace.new(NAME_SPACE, redis: Resque.redis)
+          @redis ||= Redis::Namespace.new(Resque::Plugins::Stages::RedisAccess::NAME_SPACE, redis: Resque.redis)
         end
       end
     end

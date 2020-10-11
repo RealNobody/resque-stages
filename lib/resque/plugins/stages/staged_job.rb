@@ -12,6 +12,8 @@ module Resque
       #   :pending_re_run - currently in the retry queue
       #   :failed         - completed with a failure
       #   :successful     - completed successfully
+
+      # rubocop:disable Metrics/ClassLength
       class StagedJob
         include Resque::Plugins::Stages::RedisAccess
         include Comparable
@@ -228,18 +230,28 @@ module Resque
           return if staged_group_stage.blank?
 
           if status == :pending
-            return if %i[running pending].include? staged_group_stage.status
-
-            staged_group_stage.status = :pending
+            mark_stage_pending
           elsif queued?
-            return if staged_group_stage.status == :running
-
-            staged_group_stage.status = :running
+            mark_stage_running
           else
             staged_group_stage.job_completed
           end
         end
+
+        def mark_stage_pending
+          return if %i[running pending].include? staged_group_stage.status
+
+          staged_group_stage.status = :pending
+        end
+
+        def mark_stage_running
+          return if staged_group_stage.status == :running
+
+          staged_group_stage.status = :running
+        end
       end
+
+      # rubocop:enable Metrics/ClassLength
     end
   end
 end

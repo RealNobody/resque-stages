@@ -29,7 +29,11 @@ RSpec.describe Resque::Plugins::Stages::Cleaner do
     end
 
     it "does not recreate the group if the group list is deleted" do
-      job.redis.keys("StagedGroup::*").each { |key| next if key.include?("::Info"); job.redis.del(key) }
+      job.redis.keys("StagedGroup::*").each do |key|
+        next if key.include?("::Info")
+
+        job.redis.del(key)
+      end
 
       Resque::Plugins::Stages::Cleaner.cleanup_jobs
       expect(load_group.stages.values).to be_include stage
@@ -54,7 +58,11 @@ RSpec.describe Resque::Plugins::Stages::Cleaner do
 
     it "does not create a new stage if it can be found" do
       job.redis.keys("StagedGroup::*").each { |key| job.redis.del(key) }
-      job.redis.keys("StagedGroupStage::*").each { |key| next if key.include?("::staged_group"); job.redis.del(key) }
+      job.redis.keys("StagedGroupStage::*").each do |key|
+        next if key.include?("::staged_group")
+
+        job.redis.del(key)
+      end
 
       Resque::Plugins::Stages::Cleaner.cleanup_jobs
       expect(load_group.stages.values).to be_include stage

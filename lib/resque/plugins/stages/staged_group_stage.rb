@@ -9,6 +9,8 @@ module Resque
       #   :pending  - not started yet
       #   :running  - currently running
       #   :complete - all jobs in the stage are completed
+
+      # rubocop:disable Metrics/ClassLength
       class StagedGroupStage
         include Resque::Plugins::Stages::RedisAccess
         include Comparable
@@ -227,7 +229,7 @@ module Resque
         private
 
         def build_new_structure
-          group = Resque::Plugins::Stages::StagedGroup.new(SecureRandom::uuid)
+          group = Resque::Plugins::Stages::StagedGroup.new(SecureRandom.uuid)
 
           self.staged_group = group
         end
@@ -266,6 +268,8 @@ module Resque
           end
         end
       end
+
+      # rubocop:enable Metrics/ClassLength
     end
   end
 end

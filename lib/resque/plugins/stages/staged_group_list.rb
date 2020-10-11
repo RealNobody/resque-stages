@@ -3,6 +3,7 @@
 module Resque
   module Plugins
     module Stages
+      # A utility class that keeps track of all Groups and lists them.
       class StagedGroupList
         include Resque::Plugins::Stages::RedisAccess
 

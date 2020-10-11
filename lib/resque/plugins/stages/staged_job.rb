@@ -105,6 +105,8 @@ module Resque
           @staged_group_stage    = value
           @staged_group_stage_id = value.group_stage_id
 
+          redis.hset(job_key, "staged_group_stage_id", staged_group_stage_id)
+
           value.add_job(self)
         end
 
@@ -180,7 +182,21 @@ module Resque
           !redis.exists(job_key)
         end
 
+        def verify
+          return build_new_structure if staged_group_stage.blank?
+
+          staged_group_stage.verify
+          staged_group_stage.verify_job(self)
+        end
+
         private
+
+        def build_new_structure
+          group = Resque::Plugins::Stages::StagedGroup.new(SecureRandom.uuid)
+          stage = group.current_stage
+
+          self.staged_group_stage = stage
+        end
 
         def stored_values
           @stored_values ||= (redis.hgetall(job_key) || {}).with_indifferent_access

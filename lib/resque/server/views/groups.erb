@@ -23,17 +23,14 @@
 <br/>
 
 <div>
-  <!--  <form method="POST" action="<%#= u("stages/audit_jobs") %>">-->
-  <!--    <input type="submit" name="" value="Audit Jobs"/>-->
-  <!--  </form>-->
-  <!--  <form method="POST" action="<%#= u("stages/audit_queues") %>">-->
-  <!--    <input type="submit" name="" value="Audit Queues"/>-->
-  <!--  </form>-->
-  <!--  <form method="POST" action="<%#= u("stages/approve_all_queues") %>">-->
-  <!--    <input type="submit" name="" value="Approve All Queues"/>-->
-  <!--  </form>-->
   <form method="POST" action="<%= u("stages/delete_all_groups") %>">
     <input type="submit" name="" value="Delete All Groups"/>
+  </form>
+  <form method="POST" action="<%= u("stages/cleanup_jobs") %>">
+    <input type="submit" name="" value="Cleanup Jobs"/>
+  </form>
+  <form method="POST" action="<%= u("stages/purge_all") %>">
+    <input type="submit" name="" value="Purge"/>
   </form>
 </div>
 <div class="stages_reset"/>

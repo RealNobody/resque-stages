@@ -127,8 +127,8 @@ module Resque
       end
 
       def add_button_callbacks(base)
-        # audit_jobs(base)
-        # audit_queues(base)
+        purge_all(base)
+        cleanup_jobs(base)
         delete_all_groups(base)
         initiate_group(base)
         delete_group(base)
@@ -138,25 +138,25 @@ module Resque
         delete_job(base)
       end
 
-      # def audit_jobs(base)
-      #   base.class_eval do
-      #     post "/stages/audit_jobs" do
-      #       Resque::Plugins::Approve::Cleaner.cleanup_jobs
-      #
-      #       redirect u("stages")
-      #     end
-      #   end
-      # end
-      #
-      # def audit_queues(base)
-      #   base.class_eval do
-      #     post "/stages/audit_queues" do
-      #       Resque::Plugins::Approve::Cleaner.cleanup_queues
-      #
-      #       redirect u("stages")
-      #     end
-      #   end
-      # end
+      def purge_all(base)
+        base.class_eval do
+          post "/stages/purge_all" do
+            Resque::Plugins::Stages::Cleaner.purge_all
+
+            redirect u("stages")
+          end
+        end
+      end
+
+      def cleanup_jobs(base)
+        base.class_eval do
+          post "/stages/cleanup_jobs" do
+            Resque::Plugins::Stages::Cleaner.cleanup_jobs
+
+            redirect u("stages")
+          end
+        end
+      end
 
       def delete_all_groups(base)
         base.class_eval do

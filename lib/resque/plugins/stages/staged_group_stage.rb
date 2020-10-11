@@ -206,7 +206,31 @@ module Resque
           self.status = :complete if jobs.all?(&:completed?)
         end
 
+        def blank?
+          !redis.exists(stage_key) && !redis.exists(staged_group_key)
+        end
+
+        def verify
+          return build_new_structure if staged_group.blank?
+
+          staged_group.verify_stage(self)
+        end
+
+        def verify_job(job)
+          ids = redis.lrange(stage_key, 0, -1)
+
+          return if ids.include?(job.job_id)
+
+          redis.lpush(stage_key, job.job_id)
+        end
+
         private
+
+        def build_new_structure
+          group = Resque::Plugins::Stages::StagedGroup.new(SecureRandom::uuid)
+
+          self.staged_group = group
+        end
 
         def create_enqueue_job(klass, args)
           Resque::Plugins::Stages::StagedJob.create_job self, klass, *args

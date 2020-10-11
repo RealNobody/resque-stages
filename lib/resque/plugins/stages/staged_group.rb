@@ -21,8 +21,8 @@ module Resque
 
           Resque::Plugins::Stages::StagedGroupList.new.add_group(self)
 
-          redis.hsetnx(staged_group_key, "created_at", Time.now)
-          self.description = description
+          redis.hsetnx(group_info_key, "created_at", Time.now)
+          self.description = description if description.present?
         end
 
         def <=>(other)
@@ -52,16 +52,16 @@ module Resque
         end
 
         def description
-          @description ||= redis.hget(staged_group_key, "description").presence || group_id
+          @description ||= redis.hget(group_info_key, "description").presence || group_id
         end
 
         def created_at
-          @created_at ||= redis.hget(staged_group_key, "created_at").presence.to_time || Time.now
+          @created_at ||= redis.hget(group_info_key, "created_at").presence.to_time || Time.now
         end
 
         def description=(value)
           @description = value.presence
-          redis.hset(staged_group_key, "description", description)
+          redis.hset(group_info_key, "description", description)
         end
 
         def current_stage
@@ -121,11 +121,23 @@ module Resque
           Resque::Plugins::Stages::StagedGroupList.new.remove_group(self)
 
           redis.del group_key
-          redis.del staged_group_key
+          redis.del group_info_key
         end
 
         def stage_completed
           initiate
+        end
+
+        def blank?
+          !redis.exists(group_key) && !redis.exists(group_info_key)
+        end
+
+        def verify_stage(stage)
+          ids = redis.lrange(group_key, 0, -1)
+
+          return if ids.include?(stage.group_stage_id)
+
+          redis.lpush(group_key, stage.group_stage_id)
         end
 
         private
@@ -145,8 +157,8 @@ module Resque
           "StagedGroup::#{group_id}"
         end
 
-        def staged_group_key
-          "#{group_key}::StagedGroup"
+        def group_info_key
+          "#{group_key}::Info"
         end
 
         def new_stage

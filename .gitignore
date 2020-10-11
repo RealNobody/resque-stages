@@ -11,5 +11,5 @@
 /cornucopia_report/
 
 # rspec failure tracking
-.rspec_status
+log/.rspec_status
 spec/examples.txt

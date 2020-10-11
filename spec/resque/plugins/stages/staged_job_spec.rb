@@ -17,13 +17,16 @@ RSpec.describe Resque::Plugins::Stages::StagedJob do
 
   describe "create" do
     it "creates a new job" do
-      job
-      load_job
+      travel_to(Time.now) do
+        job
+        load_job
 
-      expect(load_job.class_name).to eq "BasicJob"
-      expect(load_job.staged_group_stage.group_stage_id).to eq stage.group_stage_id
-      expect(load_job.args).to eq ["This", 1, "is", "an" => "arglist"]
-      expect(load_job.status).to eq :pending
+        expect(load_job.class_name).to eq "BasicJob"
+        expect(load_job.staged_group_stage.group_stage_id).to eq stage.group_stage_id
+        expect(load_job.args).to eq ["This", 1, "is", "an" => "arglist"]
+        expect(load_job.status).to eq :pending
+        expect(load_job.queue_time).to eq Time.now
+      end
     end
 
     it "adds the job to the staged_group_stage" do
@@ -144,6 +147,16 @@ RSpec.describe Resque::Plugins::Stages::StagedJob do
 
       expect(load_job.status).to eq :queued
     end
+
+    it "enqueues delayed jobs" do
+      allow(Resque).to receive(:enqueue_delayed_selection)
+
+      job.status = :pending_re_run
+
+      load_job.enqueue_job
+
+      expect(Resque).to have_received(:enqueue_delayed_selection)
+    end
   end
 
   describe "enqueue_args" do
@@ -214,7 +227,7 @@ RSpec.describe Resque::Plugins::Stages::StagedJob do
   end
 
   describe "pending?" do
-    %i[queued running pending_re_run failed successful].each do |status|
+    %i[queued running failed successful].each do |status|
       it "is not completed if status #{status}" do
         job.status = status
 
@@ -222,7 +235,7 @@ RSpec.describe Resque::Plugins::Stages::StagedJob do
       end
     end
 
-    %i[pending].each do |status|
+    %i[pending pending_re_run].each do |status|
       it "is not completed if status #{status}" do
         job.status = status
 

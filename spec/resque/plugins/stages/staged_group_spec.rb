@@ -39,12 +39,38 @@ RSpec.describe Resque::Plugins::Stages::StagedGroup do
     end
   end
 
+  describe "created_at" do
+    it "returns the created_at time" do
+      time = Time.now
+
+      travel_to(time) do
+        time = Time.now
+        group
+      end
+
+      travel_to(time + 1.day) do
+        expect(load_group.created_at).to eq time
+      end
+    end
+  end
+
   context "with stages" do
     let(:stages) do
-      group.stage(8).status = :running
-      group.stage(1).status = :complete
-      group.stage(2).status = :pending
-      group.stage(0).status = :complete
+      stage = group.stage(8)
+      Resque::Plugins::Stages::StagedJob.create_job stage, BasicJob
+      stage.redis.hset(stage.send(:staged_group_key), "status", :running.to_s)
+
+      stage = group.stage(1)
+      Resque::Plugins::Stages::StagedJob.create_job stage, BasicJob
+      stage.redis.hset(stage.send(:staged_group_key), "status", :complete.to_s)
+
+      stage = group.stage(2)
+      Resque::Plugins::Stages::StagedJob.create_job stage, BasicJob
+      stage.redis.hset(stage.send(:staged_group_key), "status", :pending.to_s)
+
+      stage = group.stage(0)
+      Resque::Plugins::Stages::StagedJob.create_job stage, BasicJob
+      stage.redis.hset(stage.send(:staged_group_key), "status", :complete.to_s)
 
       group.stages
     end
@@ -53,7 +79,7 @@ RSpec.describe Resque::Plugins::Stages::StagedGroup do
       it "initiates the first non-completed stage" do
         allow(group).to receive(:stages).and_return stages
 
-        stages.each { |_key, stage| allow(stage).to receive(:initiate) }
+        stages.each_value { |stage| allow(stage).to receive(:initiate) }
 
         group.initiate
 
@@ -74,7 +100,8 @@ RSpec.describe Resque::Plugins::Stages::StagedGroup do
       end
 
       it "returns the first non-complete stage" do
-        stages[2].status = :complete
+        stage = stages[2]
+        stage.redis.hset(stage.send(:staged_group_key), "status", :complete.to_s)
 
         expect(load_group.current_stage).to eq stages[8]
       end
@@ -131,6 +158,28 @@ RSpec.describe Resque::Plugins::Stages::StagedGroup do
         stages
 
         expect(load_group.stages).to eq stages
+      end
+    end
+
+    describe "paged_stages" do
+      it "a page of data" do
+        stages
+
+        expect(load_group.paged_stages(1, 2)).to eq [stages[8], stages[1]]
+      end
+
+      it "a mid page of data" do
+        stages
+
+        expect(load_group.paged_stages(2, 2)).to eq [stages[2], stages[0]]
+      end
+    end
+
+    describe "num_stages" do
+      it "a page of data" do
+        stages
+
+        expect(load_group.num_stages).to eq 4
       end
     end
 

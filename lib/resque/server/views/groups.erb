@@ -1,0 +1,43 @@
+<link href="<%= u("stages/public/stages.css") %>" media="screen" rel="stylesheet" type="text/css">
+
+<h1>Staged Groups</h1>
+
+<% staged_group_list = Resque::Plugins::Stages::StagedGroupList.new %>
+
+<div class="stages_reset"/>
+
+<%= erb(File.read(Resque::StagesServer.erb_path("_staged_group_list_pagination.erb")),
+        locals: { staged_group_list: staged_group_list, page_num: @page_num, page_size: @page_size }) %>
+
+<%= erb(File.read(Resque::StagesServer.erb_path("_staged_group_list_table.erb")),
+        locals: { groups:            staged_group_list.paginated_groups(@sort_by, @sort_order, @page_num, @page_size),
+                  staged_group_list: staged_group_list,
+                  sort_by:           @sort_by,
+                  sort_order:        @sort_order,
+                  page_num:          @page_num,
+                  page_size:         @page_size }) %>
+
+<%= erb(File.read(Resque::StagesServer.erb_path("_staged_group_list_pagination.erb")),
+        locals: { staged_group_list: staged_group_list, page_num: @page_num, page_size: @page_size }) %>
+
+<br/>
+
+<div>
+  <!--  <form method="POST" action="<%#= u("stages/audit_jobs") %>">-->
+  <!--    <input type="submit" name="" value="Audit Jobs"/>-->
+  <!--  </form>-->
+  <!--  <form method="POST" action="<%#= u("stages/audit_queues") %>">-->
+  <!--    <input type="submit" name="" value="Audit Queues"/>-->
+  <!--  </form>-->
+  <!--  <form method="POST" action="<%#= u("stages/approve_all_queues") %>">-->
+  <!--    <input type="submit" name="" value="Approve All Queues"/>-->
+  <!--  </form>-->
+  <form method="POST" action="<%= u("stages/delete_all_groups") %>">
+    <input type="submit" name="" value="Delete All Groups"/>
+  </form>
+</div>
+<div class="stages_reset"/>
+<br/>
+<div>
+  Stages v<%= Resque::Plugins::Stages::VERSION %>
+</div>

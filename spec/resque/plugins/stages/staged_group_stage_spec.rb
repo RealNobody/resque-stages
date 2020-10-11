@@ -123,14 +123,14 @@ RSpec.describe Resque::Plugins::Stages::StagedGroupStage do
     end
   end
 
-  describe "jobs" do
+  context "with jobs" do
     let(:jobs) do
-      build_jobs = [stage.enqueue(BasicJob, "pending"),
-                    stage.enqueue(BasicJob, "queued"),
-                    stage.enqueue(BasicJob, "running"),
-                    stage.enqueue(BasicJob, "pending_re_run"),
-                    stage.enqueue(BasicJob, "failed"),
-                    stage.enqueue(BasicJob, "successful")]
+      build_jobs = [travel_to(5.hours.ago) { stage.enqueue(BasicJob, "a pending") },
+                    travel_to(2.hours.ago) { stage.enqueue(BasicJob, "z queued") },
+                    travel_to(4.hours.ago) { stage.enqueue(BasicJob, "h running") },
+                    travel_to(1.hours.ago) { stage.enqueue(BasicJob, "c pending_re_run") },
+                    travel_to(3.hours.ago) { stage.enqueue(BasicJob, "m failed") },
+                    travel_to(0.hours.ago) { stage.enqueue(BasicJob, "i successful") }]
 
       build_jobs[0].status = :pending
       build_jobs[1].status = :queued
@@ -139,6 +139,13 @@ RSpec.describe Resque::Plugins::Stages::StagedGroupStage do
       build_jobs[4].status = :failed
       build_jobs[5].status = :successful
 
+      build_jobs[0].status_message = "y"
+      build_jobs[1].status_message = "g"
+      build_jobs[2].status_message = "l"
+      build_jobs[3].status_message = "q"
+      build_jobs[4].status_message = "r"
+      build_jobs[5].status_message = "b"
+
       build_jobs
     end
 
@@ -146,42 +153,70 @@ RSpec.describe Resque::Plugins::Stages::StagedGroupStage do
       allow(Resque).to receive(:enqueue).and_return nil
     end
 
-    it "returns all jobs" do
-      jobs
+    describe "paginated_jobs" do
+      it "paginates by class_name" do
+        jobs
 
-      expect(load_stage.jobs.length).to eq jobs.length
-      expect(load_stage.num_jobs).to eq jobs.length
+        expect(load_stage.paginated_jobs("class_name", "asc", 2, 2)).to eq [jobs[2], jobs[3]]
+      end
+
+      it "paginates by status" do
+        jobs
+
+        expect(load_stage.paginated_jobs("status", "asc", 2, 2)).to eq [jobs[3], jobs[1]]
+      end
+
+      it "paginates by status_message" do
+        jobs
+
+        expect(load_stage.paginated_jobs("status_message", "asc", 2, 2)).to eq [jobs[2], jobs[3]]
+      end
+
+      it "paginates by queue_time" do
+        jobs
+
+        expect(load_stage.paginated_jobs("queue_time", "asc", 2, 2)).to eq [jobs[4], jobs[1]]
+      end
     end
 
-    %i[pending queued running pending_re_run failed successful].each.with_index do |status, index|
-      it "returns jobs based on status #{status}" do
-        jobs
-        expect(load_stage.jobs_by_status(status)).to eq [jobs[index]]
-      end
-
-      it "removes a job when it is deleted" do
-        jobs.sample.delete
-
-        expect(load_stage.jobs.length).to eq jobs.length - 1
-        expect(load_stage.num_jobs).to eq jobs.length - 1
-      end
-
-      it "deletes all jobs when deleted" do
+    describe "jobs" do
+      it "returns all jobs" do
         jobs
 
-        stage.delete
-
-        expect(load_stage.jobs.length).to eq 0
-        expect(load_stage.num_jobs).to eq 0
+        expect(load_stage.jobs.length).to eq jobs.length
+        expect(load_stage.num_jobs).to eq jobs.length
       end
 
-      it "removes the stage from the group when deleted" do
-        jobs
+      %i[pending queued running pending_re_run failed successful].each.with_index do |status, index|
+        it "returns jobs based on status #{status}" do
+          jobs
+          expect(load_stage.jobs_by_status(status)).to eq [jobs[index]]
+        end
 
-        stage.staged_group = group
-        stage.delete
+        it "removes a job when it is deleted" do
+          jobs.sample.delete
 
-        expect(group).to have_received(:remove_stage).with(stage)
+          expect(load_stage.jobs.length).to eq jobs.length - 1
+          expect(load_stage.num_jobs).to eq jobs.length - 1
+        end
+
+        it "deletes all jobs when deleted" do
+          jobs
+
+          stage.delete
+
+          expect(load_stage.jobs.length).to eq 0
+          expect(load_stage.num_jobs).to eq 0
+        end
+
+        it "removes the stage from the group when deleted" do
+          jobs
+
+          stage.staged_group = group
+          stage.delete
+
+          expect(group).to have_received(:remove_stage).with(stage)
+        end
       end
     end
 
@@ -193,7 +228,7 @@ RSpec.describe Resque::Plugins::Stages::StagedGroupStage do
 
         stage.initiate
 
-        expect(Resque).to have_received(:enqueue).with(BasicJob, { staged_job_id: jobs[0].job_id }, "pending")
+        expect(Resque).to have_received(:enqueue).with(BasicJob, { staged_job_id: jobs[0].job_id }, anything)
         expect(Resque).not_to have_received(:enqueue).with(BasicJob, { staged_job_id: jobs[1].job_id }, anything)
         expect(Resque).not_to have_received(:enqueue).with(BasicJob, { staged_job_id: jobs[2].job_id }, anything)
         expect(Resque).not_to have_received(:enqueue).with(BasicJob, { staged_job_id: jobs[3].job_id }, anything)
@@ -204,6 +239,7 @@ RSpec.describe Resque::Plugins::Stages::StagedGroupStage do
       it "changes the status to running" do
         allow(Resque).to receive(:enqueue).and_return nil
 
+        jobs
         stage.initiate
 
         expect(stage.status).to eq :running
@@ -236,6 +272,22 @@ RSpec.describe Resque::Plugins::Stages::StagedGroupStage do
 
         expect(group).to have_received(:stage_completed)
       end
+    end
+  end
+
+  describe "#order_param" do
+    it "returns asc for any column other than the current one" do
+      expect(load_stage.order_param("sort_option",
+                                    "current_sort",
+                                    %w[asc desc].sample)).to eq "asc"
+    end
+
+    it "returns desc for the current column if it is asc" do
+      expect(load_stage.order_param("sort_option", "sort_option", "asc")).to eq "desc"
+    end
+
+    it "returns asc for the current column if it is desc" do
+      expect(load_stage.order_param("sort_option", "sort_option", "desc")).to eq "asc"
     end
   end
 end

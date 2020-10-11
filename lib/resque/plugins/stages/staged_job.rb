@@ -71,6 +71,10 @@ module Resque
           @class_name ||= stored_values[:class_name]
         end
 
+        def queue_time
+          @queue_time ||= stored_values[:queue_time].to_time
+        end
+
         def status
           @status ||= stored_values[:status]&.to_sym || :pending
         end
@@ -106,6 +110,7 @@ module Resque
 
         # rubocop:disable Metrics/AbcSize
         def save!
+          redis.hsetnx(job_key, "queue_time", Time.now)
           redis.hset(job_key, "class_name", class_name)
           redis.hset(job_key, "args", encode_args(*args))
           redis.hset(job_key, "staged_group_stage_id", staged_group_stage_id)
@@ -125,8 +130,18 @@ module Resque
         end
 
         def enqueue_job
-          self.status = :queued
-          Resque.enqueue(*enqueue_args)
+          case status
+            when :pending
+              self.status = :queued
+              Resque.enqueue(*enqueue_args)
+
+            when :pending_re_run
+              Resque.enqueue_delayed_selection do |args|
+                # :nocov:
+                Resque::Plugins::Stages::StagedJob.perform_job(*Array.wrap(args)).job_id == job_id
+                # :nocov:
+              end
+          end
         end
 
         def enqueue_args
@@ -158,7 +173,7 @@ module Resque
         end
 
         def pending?
-          %i[pending].include? status
+          %i[pending pending_re_run].include? status
         end
 
         def blank?
@@ -196,7 +211,7 @@ module Resque
         def notify_stage
           return if staged_group_stage.blank?
 
-          if pending?
+          if status == :pending
             return if %i[running pending].include? staged_group_stage.status
 
             staged_group_stage.status = :pending

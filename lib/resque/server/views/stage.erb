@@ -1,0 +1,64 @@
+<link href="<%= u("stages/public/stages.css") %>" media="screen" rel="stylesheet" type="text/css">
+
+<% staged_group_stage = Resque::Plugins::Stages::StagedGroupStage.new(params[:group_stage_id]) %>
+
+<h1>Stage <%= staged_group_stage.number %></h1>
+
+<p>
+  <a href="<%= u("stages") %>">
+    Groups
+  </a>
+  |
+  <% if staged_group_stage.staged_group %>
+    <a href="<%= u("stages/group_stages_list") %>?<%= { group_id: staged_group_stage.staged_group.group_id }.to_param %>">
+      <%= staged_group_stage.staged_group&.description %>
+    </a>
+  <% end %>
+</p>
+
+<div class="table_container">
+  <table>
+    <tr>
+      <td>Num jobs</td>
+      <td><%= staged_group_stage.num_jobs %></td>
+    </tr>
+    <tr>
+      <td>Status</td>
+      <td><%= staged_group_stage.status %></td>
+    </tr>
+  </table>
+</div>
+
+<div class="stages_reset"/>
+
+<%= erb(File.read(Resque::StagesServer.erb_path("_stage_job_list_pagination.erb")),
+        locals: { staged_group_stage: staged_group_stage, page_num: @page_num, page_size: @page_size }) %>
+
+<%= erb(File.read(Resque::StagesServer.erb_path("_stage_job_list_table.erb")),
+        locals: { jobs:               staged_group_stage.paginated_jobs(@sort_by, @sort_order, @page_num, @page_size),
+                  staged_group_stage: staged_group_stage,
+                  group_stage_id:     params[:group_stage_id],
+                  sort_by:            @sort_by,
+                  sort_order:         @sort_order,
+                  page_num:           @page_num,
+                  page_size:          @page_size }) %>
+
+<%= erb(File.read(Resque::StagesServer.erb_path("_stage_job_list_pagination.erb")),
+        locals: { staged_group_stage: staged_group_stage, page_num: @page_num, page_size: @page_size }) %>
+
+<br/>
+
+<div>
+  <form method="POST" action="<%= u("stages/initiate_stage") %>?<%= { group_stage_id: staged_group_stage.group_stage_id }.to_param %>">
+    <input type="submit" name="" value="Initiate"/>
+  </form>
+  <form method="POST" action="<%= u("stages/delete_stage") %>?<%= { group_stage_id: staged_group_stage.group_stage_id }.to_param %>">
+    <input type="submit" name="" value="Delete"/>
+  </form>
+</div>
+
+<div class="stages_reset"/>
+<br/>
+<div>
+  Stages v<%= Resque::Plugins::Stages::VERSION %>
+</div>

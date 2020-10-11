@@ -1,0 +1,46 @@
+<div class="table_container">
+  <table>
+    <tr>
+      <th><a href="<%= u("stages/stage") %>?<%=
+        { group_stage_id: group_stage_id,
+          sort:           "class_name",
+          page_size:      page_size,
+          page_num:       page_num,
+          order:          staged_group_stage.order_param("class_name", sort_by, sort_order) }.to_param %>">
+        Class
+      </a></th>
+      <th><a href="<%= u("stages/stage") %>?<%=
+        { group_stage_id: group_stage_id,
+          sort:           "status",
+          page_size:      page_size,
+          page_num:       page_num,
+          order:          staged_group_stage.order_param("status", sort_by, sort_order) }.to_param %>">
+        Status
+      </a></th>
+      <th><a href="<%= u("stages/stage") %>?<%=
+        { group_stage_id: group_stage_id,
+          sort:           "status_message",
+          page_size:      page_size,
+          page_num:       page_num,
+          order:          staged_group_stage.order_param("status_message", sort_by, sort_order) }.to_param %>">
+        Message
+      </a></th>
+      <th>Args</th>
+    </tr>
+
+    <% jobs.each do |job| %>
+      <tr>
+        <td>
+          <a href="<%= u("stages") %>/job_details?<%= { job_id: job.job_id }.to_param %>">
+            <%= job.class_name %>
+          </a>
+        </td>
+        <td><%= job.status %></td>
+        <td><%= job.status_message %></td>
+        <td>
+          <pre><code><%= "".html_safe + job.args.to_yaml %></code></pre>
+        </td>
+      </tr>
+    <% end %>
+  </table>
+</div>

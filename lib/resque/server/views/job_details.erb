@@ -1,0 +1,91 @@
+<link href="<%= u("stages/public/stages.css") %>" media="screen" rel="stylesheet" type="text/css">
+
+<% job_details = Resque::Plugins::Stages::StagedJob.new(@job_id) %>
+
+<h1>
+  <%= job_details.class_name %>
+</h1>
+
+<p>
+  <a href="<%= u("stages") %>">
+    Groups
+  </a>
+  |
+  <% if job_details.staged_group_stage&.staged_group %>
+    <a href="<%= u("stages/group_stages_list") %>?<%= { group_id: job_details.staged_group_stage.staged_group.group_id }.to_param %>">
+      <%= job_details.staged_group_stage.staged_group&.description %>
+    </a>
+  <% end %>
+  |
+  <% if job_details.staged_group_stage %>
+    <a href="<%= u("stages/stage") %>?<%= { group_stage_id: job_details.staged_group_stage.group_stage_id }.to_param %>">
+      <%= job_details.staged_group_stage.number %>
+    </a>
+  <% end %>
+</p>
+
+<div class="table_container">
+  <table>
+    <tr>
+      <td>
+        Enqueued
+      </td>
+      <td>
+        <%= time_ago_in_words(job_details.queue_time) %> ago
+        (<%= job_details.queue_time %>)
+      </td>
+    </tr>
+    <tr>
+      <td>
+        Status
+      </td>
+      <td>
+        <%= job_details.status %>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        Class
+      </td>
+      <td>
+        <%= job_details.class_name %>
+      </td>
+    </tr>
+    </tr>
+    <tr>
+      <td>
+        Params
+      </td>
+      <td>
+        <pre><code><%= "".html_safe + job_details.args.to_yaml %></code></pre>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        Message
+      </td>
+      <td>
+        <%= job_details.status_message %>
+      </td>
+    </tr>
+  </table>
+</div>
+
+<br/>
+
+<% if job_details.pending? %>
+  <form method="POST" action="<%= u("stages/queue_job") %>?<%= { job_id: @job_id }.to_param %>">
+    <input type="submit" name="" value="Queue Job"/>
+  </form>
+<% end %>
+
+<form method="POST" action="<%= u("stages/delete_job") %>?<%= { job_id: @job_id }.to_param %>">
+  <input type="submit" name="" value="Delete Job"/>
+</form>
+
+<div class="stages_reset"/>
+
+<br/>
+<div>
+  Stages v<%= Resque::Plugins::Stages::VERSION %>
+</div>

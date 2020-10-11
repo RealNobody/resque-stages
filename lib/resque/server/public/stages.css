@@ -1,0 +1,56 @@
+.stages_pagination_block {
+    width:           100%;
+    display:         flex;
+    justify-content: space-between;
+    margin-bottom:   5px;
+}
+
+.stages_first_page {
+    margin-right: 5px;
+}
+
+.stages_prev_page {
+    margin-right: 5px;
+    margin-left:  5px;
+}
+
+.stages_page {
+    margin-right: 5px;
+    margin-left:  5px;
+}
+
+.stages_next_page {
+    margin-right: 5px;
+    margin-left:  5px;
+}
+
+.stages_last_page {
+    margin-left: 5px;
+}
+
+.table_container {
+    width:      100%;
+    overflow-x: scroll;
+}
+
+.stages_error {
+    background-color: lightcoral;
+}
+
+.stages_linear_history_div {
+    margin-top: 5px;
+    float:      left;
+}
+
+#stages_search_div {
+    float:         right;
+    margin-bottom: 10px;
+}
+
+#stages_search_div form {
+    margin-top: 0px;
+}
+
+.stages_reset {
+    clear: both;
+}

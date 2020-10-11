@@ -113,7 +113,7 @@ RSpec.describe Resque::Plugins::Stages do
         allow(RetryJob).to receive(:perform).and_raise "This is an error"
 
         6.times do
-          job.enqueue_job
+          Resque.enqueue(*job.enqueue_args)
 
           worker_job = worker.reserve
 

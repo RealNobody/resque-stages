@@ -12,13 +12,23 @@ module Resque
       # individual stages or get/create new stages
       class StagedGroup
         include Resque::Plugins::Stages::RedisAccess
+        include Comparable
 
         attr_reader :group_id
 
         def initialize(group_id, description: "")
           @group_id = group_id
 
+          Resque::Plugins::Stages::StagedGroupList.new.add_group(self)
+
+          redis.hsetnx(staged_group_key, "created_at", Time.now)
           self.description = description
+        end
+
+        def <=>(other)
+          return nil unless other.is_a?(Resque::Plugins::Stages::StagedGroup)
+
+          group_id <=> other.group_id
         end
 
         class << self
@@ -32,11 +42,21 @@ module Resque
         end
 
         def initiate
-          next_stage&.initiate
+          stage = next_stage
+
+          if stage
+            stage.initiate
+          else
+            delete
+          end
         end
 
         def description
           @description ||= redis.hget(staged_group_key, "description").presence || group_id
+        end
+
+        def created_at
+          @created_at ||= redis.hget(staged_group_key, "created_at").presence.to_time || Time.now
         end
 
         def description=(value)
@@ -63,6 +83,10 @@ module Resque
           redis.lrem(group_key, 0, staged_group_stage.group_stage_id)
         end
 
+        def num_stages
+          redis.llen group_key
+        end
+
         def stages
           all_stages = redis.lrange(group_key, 0, -1).map { |stage_id| Resque::Plugins::Stages::StagedGroupStage.new(stage_id) }
 
@@ -70,9 +94,19 @@ module Resque
             num = stage.number
             num += 1 while hash.key?(num)
 
-            stage.number = num if stage.number != num
             hash[num]    = stage
+            stage.number = num if stage.number != num
           end
+        end
+
+        def paged_stages(page_num = 1, page_size = nil)
+          page_size ||= 20
+          page_size = page_size.to_i
+          page_size = 20 if page_size < 1
+          start     = (page_num - 1) * page_size
+          start     = 0 if start >= num_stages || start.negative?
+
+          stages.values[start..start + page_size - 1]
         end
 
         def stage(stage_number)
@@ -84,18 +118,14 @@ module Resque
         def delete
           stages.each_value(&:delete)
 
+          Resque::Plugins::Stages::StagedGroupList.new.remove_group(self)
+
           redis.del group_key
           redis.del staged_group_key
         end
 
         def stage_completed
-          stage = next_stage
-
-          if stage
-            stage.initiate
-          else
-            delete
-          end
+          initiate
         end
 
         private

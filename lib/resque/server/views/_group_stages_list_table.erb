@@ -1,0 +1,25 @@
+<div class="table_container">
+  <table>
+    <tr>
+      <th>Number</th>
+      <th>Status</th>
+      <th>Num Jobs</th>
+    </tr>
+    <% stages.each do |stage| %>
+      <tr>
+        <td>
+          <a href="<%= u("stages/stage") %>?<%=
+            { group_stage_id: stage.group_stage_id }.to_param %>">
+            <%= stage.number %>
+          </a>
+        </td>
+        <td>
+          <%= stage.status %>
+        </td>
+        <td>
+          <%= stage.num_jobs %>
+        </td>
+      </tr>
+    <% end %>
+  </table>
+</div>

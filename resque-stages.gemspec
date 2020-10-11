@@ -33,20 +33,17 @@ Gem::Specification.new do |spec|
   spec.executables   = spec.files.grep(%r{^exe/}) { |f| File.basename(f) }
   spec.require_paths = ["lib"]
 
+  spec.add_dependency "resque"
   spec.add_dependency "redis"
   spec.add_dependency "redis-namespace"
-  spec.add_dependency "resque"
 
+  spec.add_development_dependency "activesupport"
   spec.add_development_dependency "cornucopia"
+  spec.add_development_dependency "faker"
   spec.add_development_dependency "gem-release"
   spec.add_development_dependency "resque-compressible"
+  spec.add_development_dependency "rspec-rails", "> 3.9.1"
   spec.add_development_dependency "resque-retry"
   spec.add_development_dependency "rubocop"
   spec.add_development_dependency "simplecov"
-
-  # spec.add_development_dependency "activesupport"
-  # spec.add_development_dependency "faker"
-  # spec.add_development_dependency "rspec-rails", "> 3.9.1"
-  # spec.add_development_dependency "sinatra"
-  # spec.add_development_dependency "timecop"
 end

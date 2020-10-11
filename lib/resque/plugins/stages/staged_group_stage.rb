@@ -143,13 +143,37 @@ module Resque
           jobs.select { |job| job.status == status }
         end
 
+        def paginated_jobs(sort_key = :class_name,
+                           sort_order = "asc",
+                           page_num = 1,
+                           queue_page_size = 20)
+          queue_page_size = queue_page_size.to_i
+          queue_page_size = 20 if queue_page_size < 1
+
+          job_list = sorted_jobs(sort_key)
+
+          page_start = (page_num - 1) * queue_page_size
+          page_start = 0 if page_start > job_list.length || page_start.negative?
+
+          (sort_order == "desc" ? job_list.reverse : job_list)[page_start..(page_start + queue_page_size - 1)]
+        end
+
+        def order_param(sort_option, current_sort, current_order)
+          current_order ||= "asc"
+
+          if sort_option == current_sort
+            current_order == "asc" ? "desc" : "asc"
+          else
+            "asc"
+          end
+        end
+
         def num_jobs
           redis.llen(stage_key)
         end
 
         def add_job(staged_group_job)
           redis.rpush stage_key, staged_group_job.job_id
-          staged_group&.add_stage(self)
         end
 
         def remove_job(staged_group_job)
@@ -174,12 +198,12 @@ module Resque
 
             job.enqueue_job
           end
+
+          job_completed
         end
 
         def job_completed
-          return unless jobs.all?(&:completed?)
-
-          self.status = :complete
+          self.status = :complete if jobs.all?(&:completed?)
         end
 
         private
@@ -198,6 +222,24 @@ module Resque
 
         def staged_group_id
           @staged_group_id ||= redis.hget(staged_group_key, "staged_group_id")
+        end
+
+        def sorted_jobs(sort_key)
+          jobs.sort_by do |job|
+            job_sort_value(job, sort_key)
+          end
+        end
+
+        def job_sort_value(job, sort_key)
+          case sort_key.to_sym
+            when :class_name,
+                :status,
+                :status_message
+              job.public_send(sort_key)
+
+            when :queue_time
+              job.public_send(sort_key).to_s
+          end
         end
       end
     end

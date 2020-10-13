@@ -15,8 +15,6 @@ module Resque
         if singleton_class.included_modules.map(&:name).include?("Resque::Plugins::Retry")
           try_again_callback :stages_report_try_again
           give_up_callback :stages_report_giving_up
-
-          add_record_inline_failure
         else
           add_record_failure
         end
@@ -24,8 +22,36 @@ module Resque
 
       # rubocop:disable Metrics/BlockLength
       class_methods do
+        def perform_job(*args)
+          job = perform_job_from_param(args)
+
+          if job.nil?
+            job            = Resque::Plugins::Stages::StagedJob.new(SecureRandom.uuid)
+            job.class_name = name
+            job.args       = args
+          end
+
+          job
+        end
+
+        # rubocop:disable Metrics/AbcSize
+        # rubocop:disable Metrics/CyclomaticComplexity
+        def perform_job_from_param(args)
+          return if args.blank? || !args.first.is_a?(Hash)
+
+          hash            = args.first.with_indifferent_access
+          job             = Resque::Plugins::Stages::StagedJob.new(hash[:staged_job_id]) if hash.key?(:staged_job_id)
+          job&.class_name = name
+          job.args        = (hash.key?(:resque_compressed) ? args : args[1..]) if !job.nil? && job.blank?
+
+          job
+        end
+
+        # rubocop:enable Metrics/CyclomaticComplexity
+        # rubocop:enable Metrics/AbcSize
+
         def before_perform_stages_successful(*args)
-          job = Resque::Plugins::Stages::StagedJob.perform_job(*args)
+          job = perform_job(*args)
 
           return if job.blank?
 
@@ -33,15 +59,27 @@ module Resque
         end
 
         def after_perform_stages_successful(*args)
-          job = Resque::Plugins::Stages::StagedJob.perform_job(*args)
+          job = perform_job(*args)
 
           return if job.blank?
+          return if job.status == :failed && Resque.inline?
 
           job.status = :successful
         end
 
+        def around_perform_stages_inline_around(*args)
+          yield
+        rescue StandardError => e
+          raise e unless Resque.inline?
+
+          job = perform_job(*args)
+          return if job.blank?
+
+          job.status = :failed
+        end
+
         def stages_report_try_again(_exception, *args)
-          job = Resque::Plugins::Stages::StagedJob.perform_job(*args)
+          job = perform_job(*args)
 
           return if job.blank?
 
@@ -49,7 +87,7 @@ module Resque
         end
 
         def stages_report_giving_up(_exception, *args)
-          job = Resque::Plugins::Stages::StagedJob.perform_job(*args)
+          job = perform_job(*args)
 
           return if job.blank?
 
@@ -58,19 +96,7 @@ module Resque
 
         def add_record_failure
           define_singleton_method(:on_failure_stages_failed) do |_error, *args|
-            job = Resque::Plugins::Stages::StagedJob.perform_job(*args)
-
-            return if job.blank?
-
-            job.status = :failed
-          end
-        end
-
-        def add_record_inline_failure
-          define_singleton_method(:on_failure_stages_inline_failed) do |_error, *args|
-            return unless Resque.inline?
-
-            job = Resque::Plugins::Stages::StagedJob.perform_job(*args)
+            job = perform_job(*args)
 
             return if job.blank?
 

@@ -95,6 +95,6 @@ RSpec.describe "job_details.erb" do
 
     expect(last_response).to be_ok
 
-    expect(last_response.body).to be_include("".html_safe + job.args.to_yaml)
+    expect(last_response.body).to be_include("".html_safe + job.uncompressed_args.to_yaml)
   end
 end

@@ -34,29 +34,6 @@ module Resque
 
             job
           end
-
-          def perform_job(*args)
-            job = perform_job_from_param(args)
-
-            if job.nil?
-              job      = Resque::Plugins::Stages::StagedJob.new(SecureRandom.uuid)
-              job.args = args
-            end
-
-            job
-          end
-
-          private
-
-          def perform_job_from_param(args)
-            return if args.blank? || !args.first.is_a?(Hash)
-
-            hash     = args.first.with_indifferent_access
-            job      = Resque::Plugins::Stages::StagedJob.new(hash[:staged_job_id]) if hash.key?(:staged_job_id)
-            job.args = args[1..] if !job.nil? && job.blank?
-
-            job
-          end
         end
 
         def initialize(job_id)
@@ -116,7 +93,7 @@ module Resque
         def save!
           redis.hsetnx(job_key, "queue_time", Time.now)
           redis.hset(job_key, "class_name", class_name)
-          redis.hset(job_key, "args", encode_args(*args))
+          redis.hset(job_key, "args", encode_args(*compressed_args(args)))
           redis.hset(job_key, "staged_group_stage_id", staged_group_stage_id)
           redis.hset(job_key, "status", status)
           redis.hset(job_key, "status_message", status_message)
@@ -142,30 +119,38 @@ module Resque
             when :pending_re_run
               Resque.enqueue_delayed_selection do |args|
                 # :nocov:
-                Resque::Plugins::Stages::StagedJob.perform_job(*Array.wrap(args)).job_id == job_id
+                klass.perform_job(*Array.wrap(args)).job_id == job_id
                 # :nocov:
               end
           end
         end
 
         def enqueue_args
-          [klass, { staged_job_id: job_id }, *args]
+          [klass, *enqueue_compressed_args]
+        end
+
+        def enqueue_compressed_args
+          new_args = compressed_args([{ staged_job_id: job_id }, *args])
+
+          new_args[0][:staged_job_id] = job_id
+
+          new_args
+        end
+
+        def uncompressed_args
+          decompress_args(args)
         end
 
         def args
           @args = if defined?(@args)
                     @args
                   else
-                    Array.wrap(decode_args(stored_values[:args]))
+                    decompress_args(Array.wrap(decode_args(stored_values[:args])))
                   end
         end
 
         def args=(value)
-          @args = if value.nil?
-                    []
-                  else
-                    Array.wrap(value).dup
-                  end
+          @args = value.nil? ? [] : Array.wrap(value).dup
         end
 
         def completed?
@@ -248,6 +233,35 @@ module Resque
           return if staged_group_stage.status == :running
 
           staged_group_stage.status = :running
+        end
+
+        def described_class
+          return if class_name.blank?
+
+          class_name.constantize
+        rescue StandardError
+          # :nocov:
+          nil
+          # :nocov:
+        end
+
+        def compressable?
+          !described_class.blank? &&
+              described_class.singleton_class.included_modules.map(&:name).include?("Resque::Plugins::Compressible")
+        end
+
+        def compressed_args(compress_args)
+          return compress_args unless compressable?
+          return compress_args if described_class.compressed?(compress_args)
+
+          [{ resque_compressed: true, payload: described_class.compressed_args(compress_args) }]
+        end
+
+        def decompress_args(basic_args)
+          return basic_args unless compressable?
+          return basic_args unless described_class.compressed?(basic_args)
+
+          described_class.uncompressed_args(basic_args.first[:payload] || basic_args.first["payload"])
         end
       end
 

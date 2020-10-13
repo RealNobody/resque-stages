@@ -36,7 +36,7 @@ of a stage.
 
 This gem will enqueue a job with extra paramters when it is enqueued
 as a part of a stage.  To support this, the
-`Resque::Plugins::Stages::StagedJob.perform_job` method will return an
+`perform_job` method is added to your class and it will return an
 object which will have the un-altered arguments for the job - whether or
 not the job is called with the extra parameters.
 
@@ -46,7 +46,7 @@ class MyJob
   include Resque::Plugins::Stages
   
   def perform(*args)
-    job = Resque::Plugins::Stages::StagedJob.perform_job(*args)
+    job = perform_job(*args)
     
     real_perform(*job.args)
   end
@@ -87,6 +87,44 @@ To aid in querying information about the jobs in a stage, each job
 includes a single string value `status_message` which can be set at any
 time and will be available until all jobs are completed.
 
+###Compatibility with other Resque Plugins
+
+In general, this plugin should be compatible with other gems.  Some special
+notations on specific compatibility should be made.
+
+[resque-compressible](https://github.com/MishaConway/resque-compressible) -
+Special code has been added to ensure compatibility with this gem and
+compressed jobs.  The only condition for this to work properly is that the
+`Resque::Plugins::Stages` gem must be included AFTER the
+`Resque::Plugins::Compressible` gem is extended so that the code knows
+that it needs to accomidate resque-compressible.
+
+[resque-retry](https://github.com/lantins/resque-retry) -
+Special code has been added to ensure compatibility with this gem and
+Retryable jobs.  When a job is retried, we know it and mark the status
+of the job with a special status indicating that the job is pending being
+retried.  When enqueued, if the job is pending a retry, the pending job
+is enqueued, not a new copy of the job.  The only condition for this to
+work properly is that the `Resque::Plugins::Stages` gem must be included
+AFTER the `Resque::Plugins::Retry` gem is extended so that the code knows
+that it needs to accomidate resque-retry.
+
+[resque-job_history](https://github.com/RealNobody/resque-job_history) -
+No special code has been added for this gem, but this gem and gems like it
+(resque-cleaner, resque-history, etc.) which record the parameters for a
+job and allow it to be re-enqueued all have the same/similar potential
+problem of enqueueing a job with outdated job IDs because we include
+the job ID in the enqueued job.  If this happens and you use the
+`perform_job` method as described, there will be no problem.  A temporary
+job with a `nil` `staged_group_stage` will be created and the params
+will be available as always.
+
+[resque](https://github.com/resque/resque) - Enqueuing jobs directly.
+If you enque a job that is staged through `Resque` itself, the job will
+still work as designed if you properly use the `perform_job` method as
+described.  It will recognize that there is no actual job and create a
+temporary one with the right parameters for you to use.
+
 ###API
 
 **StagedJob** - A job that is a part of a Stage
@@ -95,7 +133,7 @@ The Staged Job is the job which has been enqueued and using
 the `perform_job` will be available to you within your `perform` method.
 
 ```Ruby
-job = Resque::Plugins::Stages::StagedJob.perform_job(*args)
+job = perform_job(*args)
 
 job.args               # The original args to the job
 job.blank?             # true if there is no job or stage/grouping etc.
@@ -124,7 +162,7 @@ job.staged_group_stage&.staged_group
 **StagedGroupStage** - A Stage that is a part of a Group (contains Jobs)
 
 ```Ruby
-job = Resque::Plugins::Stages::StagedJob.perform_job(*args)
+job = perform_job(*args)
 stage = job.staged_group_stage
 
 ## OR

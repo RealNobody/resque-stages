@@ -38,7 +38,7 @@
         <td><%= job.status %></td>
         <td><%= job.status_message %></td>
         <td>
-          <pre><code><%= "".html_safe + job.args.to_yaml %></code></pre>
+          <pre><code><%= "".html_safe + job.uncompressed_args.to_yaml %></code></pre>
         </td>
       </tr>
     <% end %>

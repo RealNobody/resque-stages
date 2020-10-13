@@ -15,6 +15,65 @@ RSpec.describe Resque::Plugins::Stages::StagedJob do
   let(:job) { Resque::Plugins::Stages::StagedJob.create_job(stage, BasicJob, "This", 1, :is, an: "arglist") }
   let(:load_job) { Resque::Plugins::Stages::StagedJob.new(job.job_id) }
 
+  context "compressed job" do
+    let(:job) { Resque::Plugins::Stages::StagedJob.create_job(stage, CompressedJob, "This", 1, :is, an: "arglist") }
+    let(:enqueue_args) do
+      [{ resque_compressed: true,
+         payload:           CompressedJob.compressed_args([{ "staged_job_id" => job.job_id }, "This", 1, :is, an: "arglist"]),
+         staged_job_id:     job.job_id }]
+    end
+
+    describe "create" do
+      it "creates a new job" do
+        travel_to(Time.now) do
+          job
+          load_job
+
+          expect(load_job.class_name).to eq "CompressedJob"
+          expect(load_job.staged_group_stage.group_stage_id).to eq stage.group_stage_id
+          expect(load_job.enqueue_args).to eq [CompressedJob, *enqueue_args]
+          expect(load_job.args).to eq ["This", 1, "is", "an" => "arglist"]
+          expect(load_job.uncompressed_args).to eq ["This", 1, "is", "an" => "arglist"]
+          expect(load_job.status).to eq :pending
+          expect(load_job.queue_time).to eq Time.now
+        end
+      end
+    end
+
+    describe "enqueue_job" do
+      it "enqueues a job with the staging parameters" do
+        allow(Resque).to receive(:enqueue)
+
+        load_job.enqueue_job
+
+        expect(Resque).to have_received(:enqueue).with(CompressedJob, *enqueue_args)
+      end
+    end
+
+    describe "enqueue_args" do
+      it "returns the args for enqueing the job" do
+        expect(load_job.enqueue_args).to eq [CompressedJob, *enqueue_args]
+      end
+    end
+
+    describe "args" do
+      it "returns the args for the job" do
+        expect(load_job.args).to eq ["This", 1, "is", "an" => "arglist"]
+      end
+
+      it "returns the uncompressed args for the job" do
+        expect(load_job.uncompressed_args).to eq ["This", 1, "is", "an" => "arglist"]
+      end
+
+      it "defaults args to a blank array if nil" do
+        job.args = nil
+        job.save!
+
+        expect(load_job.args).to eq []
+      end
+    end
+  end
+
   describe "create" do
     it "creates a new job" do
       travel_to(Time.now) do
@@ -24,6 +83,7 @@ RSpec.describe Resque::Plugins::Stages::StagedJob do
         expect(load_job.class_name).to eq "BasicJob"
         expect(load_job.staged_group_stage.group_stage_id).to eq stage.group_stage_id
         expect(load_job.args).to eq ["This", 1, "is", "an" => "arglist"]
+        expect(load_job.uncompressed_args).to eq ["This", 1, "is", "an" => "arglist"]
         expect(load_job.status).to eq :pending
         expect(load_job.queue_time).to eq Time.now
       end
@@ -170,6 +230,10 @@ RSpec.describe Resque::Plugins::Stages::StagedJob do
       expect(load_job.args).to eq ["This", 1, "is", "an" => "arglist"]
     end
 
+    it "returns the uncompressed_args for the job" do
+      expect(load_job.uncompressed_args).to eq ["This", 1, "is", "an" => "arglist"]
+    end
+
     it "defaults args to a blank array if nil" do
       job.args = nil
       job.save!
@@ -255,37 +319,6 @@ RSpec.describe Resque::Plugins::Stages::StagedJob do
       job.delete
 
       expect(load_job).to be_blank
-    end
-  end
-
-  describe "perform_job" do
-    let(:perform_args) { [{ staged_job_id: job.job_id }, "This", 1, "is", "an" => "arglist"] }
-    let(:match_args) { ["This", 1, "is", "an" => "arglist"] }
-    let(:perform_job) { Resque::Plugins::Stages::StagedJob.perform_job(*perform_args) }
-
-    it "loads the job by ID" do
-      expect(perform_job).to eq load_job
-      expect(perform_job.args).to eq match_args
-    end
-
-    it "creates a new job if the id is deleted" do
-      job.delete
-
-      expect(perform_job).to eq load_job
-      expect(perform_job.args).to eq match_args
-    end
-
-    it "creates a new job if the first paramater is a hash but doesn't have an ID" do
-      perform_args[0].delete :staged_job_id
-      perform_args[0]["this_is"] = "silly"
-
-      expect(perform_job.args).to eq perform_args
-    end
-
-    it "creates a new job if there is no id" do
-      perform_args.shift
-
-      expect(perform_job.args).to eq perform_args
     end
   end
 end

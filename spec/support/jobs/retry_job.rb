@@ -12,6 +12,10 @@ class RetryJob
   end
 
   def self.perform(*args)
-    FakeLogger.error("RetryJob.perform", *args)
+    job = perform_job(*args)
+
+    FakeLogger.error("RetryJob.perform job_id", job.job_id)
+    FakeLogger.error("RetryJob.perform args", *args)
+    FakeLogger.error("RetryJob.perform job.args", *job.args)
   end
 end

@@ -176,6 +176,10 @@ module Resque
           staged_group_stage.verify_job(self)
         end
 
+        def compressed?
+          compressable? && described_class.compressed?(args)
+        end
+
         private
 
         def build_new_structure

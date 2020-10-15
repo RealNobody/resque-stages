@@ -324,7 +324,11 @@ RSpec.describe Resque::Plugins::Stages do
         perform_args[0].delete :staged_job_id
         perform_args[0]["this_is"] = "silly"
 
-        expect(perform_job.args).to eq perform_args
+        if perform_args.length > 1
+          expect(perform_job.args).to eq perform_args
+        else
+          expect(perform_job.args).to eq match_args
+        end
       end
 
       it "creates a new job if there is no id" do
@@ -334,7 +338,7 @@ RSpec.describe Resque::Plugins::Stages do
           perform_args[0].delete :staged_job_id
         end
 
-        expect(perform_job.args).to eq perform_args
+        expect(perform_job.args).to eq match_args
       end
     end
 
@@ -351,16 +355,8 @@ RSpec.describe Resque::Plugins::Stages do
     context "CompressedJob" do
       let(:job) { Resque::Plugins::Stages::StagedJob.create_job(stage, CompressedJob, "This", 1, :is, an: "arglist") }
       let(:load_job) { Resque::Plugins::Stages::StagedJob.new(job.job_id) }
-      let(:perform_args) do
-        [{ "resque_compressed" => true,
-           "payload"           => CompressedJob.compressed_args([{ "staged_job_id" => job.job_id }, "This", 1, :is, an: "arglist"]),
-           staged_job_id:      job.job_id }]
-      end
-      let(:match_args) do
-        [{ "resque_compressed" => true,
-           "payload"           => CompressedJob.compressed_args([{ "staged_job_id" => job.job_id }, "This", 1, :is, an: "arglist"]),
-           staged_job_id:      job.job_id }]
-      end
+      let(:perform_args) { job.enqueue_compressed_args }
+      let(:match_args) { ["This", 1, "is", "an" => "arglist"] }
       let(:perform_job) { CompressedJob.perform_job(*perform_args) }
 
       it_behaves_like "it loads from args"

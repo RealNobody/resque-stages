@@ -31,6 +31,8 @@ module Resque
             job.args       = args
           end
 
+          job = perform_job(*job.uncompressed_args) if job.compressed?
+
           job
         end
 

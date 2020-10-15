@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    resque-stages (0.0.1)
+    resque-stages (0.0.3)
       redis
       redis-namespace
       resque
